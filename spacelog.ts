@@ -1,19 +1,70 @@
 // Started work on this in January 2025
 
+const LENGTH_UNITS = {
+    m: 1,
+    km: 1000
+} as const;
+
+const TIME_UNITS = {
+    s: 1,
+    min: 60,
+    h: 3600,
+    d: 86400,
+} as const;
+
+type LengthUnit = keyof typeof LENGTH_UNITS;
+type TimeUnit = keyof typeof TIME_UNITS;
+
+/**
+ * Converts a length from one unit to another
+ * @param value The length to convert, expressed in the `from` unit
+ * @param from The unit `value` is currently in
+ * @param to The unit to convert to
+ * @returns The length expressed in the `to` unit
+ */
+function convertLength(
+    value: number,
+    from: LengthUnit,
+    to: LengthUnit
+): number {
+    return (value * LENGTH_UNITS[from]) / LENGTH_UNITS[to];
+}
+
+/**
+ * Converts a duration from one unit to another
+ * @param value The duration to convert, expressed in the `from` unit
+ * @param from The unit `value` is currently in
+ * @param to The unit to convert to
+ * @returns The duration expressed in the `to` unit
+ */
+function convertTime(
+    value: number,
+    from: TimeUnit,
+    to: TimeUnit
+): number {
+    return (value * TIME_UNITS[from]) / TIME_UNITS[to];
+}
+
+/**
+ * Simulate a full journey
+ * @param shipAcceleration Acceleration and deceleration rate, in m/s^2
+ * @param shipMaxSpeed Top speed of the ship, in m/s
+ * @param distanceToCover Total distance of the journey, in m
+ */
 function makeJourney(
     shipAcceleration: number,
     shipMaxSpeed: number,
     distanceToCover: number
 ): void {
-    // shipAcceleration is in m/s^2, shipMaxSpeed is in km/s, distanceToCover is in km
-    // starting from 0 initial speed, at destination should have 0 final speed
+    // Starting from 0 initial speed, cruise when max speed is reached
+    // at destination should have 0 final speed
     let currentSpeed = 0; // m/s
     let previousSpeed = 0; // m/s
     let duration = 0; // seconds
 
     let journeyLog: string[] = [];
 
-    journeyLog.push(`After ${duration} seconds: the speed is ${currentSpeed} m/s; distance left is ${distanceToCover} km`);
+    journeyLog.push(`After ${duration} seconds: the speed is ${currentSpeed} m/s; distance left is ${distanceToCover} m`);
 
     do {
         previousSpeed = currentSpeed;
@@ -27,16 +78,16 @@ function makeJourney(
         } else {
             currentSpeed += shipAcceleration;
 
-            if (currentSpeed > shipMaxSpeed*1000) {
-                currentSpeed = shipMaxSpeed*1000;
+            if (currentSpeed > shipMaxSpeed) {
+                currentSpeed = shipMaxSpeed;
             }
         }
 
         duration++;
 
-        distanceToCover -= (currentSpeed + previousSpeed) / 2000;
+        distanceToCover -= (currentSpeed + previousSpeed) / 2;
 
-        journeyLog.push(`After ${duration} seconds: the speed is ${currentSpeed} m/s; distance left is ${distanceToCover} km`);
+        journeyLog.push(`After ${duration} seconds: the speed is ${currentSpeed} m/s; distance left is ${distanceToCover} m`);
 
         if (currentSpeed === 0) {
             break;
@@ -50,16 +101,28 @@ function makeJourney(
     showJourneyLog(journeyLog);
 }
 
-function shouldDecelerate(shipAcceleration: number, currentSpeed: number, distanceToCover: number): boolean {
+/**
+ * Decide if the ship should start decelerating
+ * @param shipAcceleration Acceleration and deceleration rate, in m/s^2
+ * @param currentSpeed Current speed of the ship, in m/s
+ * @param distanceLeft Distance remaining, in m
+ * @returns 
+ */
+function shouldDecelerate(shipAcceleration: number, currentSpeed: number, distanceLeft: number): boolean {
     let brakingDistance = (currentSpeed**2) / (2 * shipAcceleration);
-    return brakingDistance + 2*(currentSpeed + shipAcceleration) >= distanceToCover*1000;
+    return brakingDistance + 2*(currentSpeed + shipAcceleration) >= distanceLeft;
 }
 
+/**
+ * Breaks a duration into days, hours, minutes and seconds for display
+ * @param totalSeconds The duration to format
+ * @returns The duration as `DDd:HHh:MMm:SSs`
+ */
 function formatDuration(totalSeconds: number): string {
-    const days    = Math.floor(totalSeconds / 86400);
-    const hours   = Math.floor((totalSeconds % 86400) / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    const seconds = totalSeconds % 60;
+    const days    = Math.floor(totalSeconds / TIME_UNITS.d);
+    const hours   = Math.floor((totalSeconds % TIME_UNITS.d) / TIME_UNITS.h);
+    const minutes = Math.floor((totalSeconds % TIME_UNITS.h) / TIME_UNITS.min);
+    const seconds = totalSeconds % TIME_UNITS.min;
 
     const pad = (n: number) => String(n).padStart(2, "0");
 
@@ -91,4 +154,8 @@ function showJourneyLog(journeyLog: string[]): void {
     }
 }
 
-makeJourney(0.981, 500, 225_000_000);
+makeJourney(
+    0.981,
+    convertLength(500, "km", "m"),
+    convertLength(225_000_000, "km", "m")
+);

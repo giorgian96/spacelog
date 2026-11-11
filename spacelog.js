@@ -35,17 +35,20 @@ function convertTime(value, from, to) {
  * @param shipAcceleration Acceleration and deceleration rate, in m/s^2
  * @param shipDeltaV Total velocity change available for the journey, in m/s
  * @param distanceToCover Total distance of the journey, in m
+ * @returns Every simulated second of the journey, and the total duration
  */
-function makeJourney(shipAcceleration, shipDeltaV, distanceToCover) {
+function simulateJourney(shipAcceleration, shipDeltaV, distanceToCover) {
     const maxSpeed = shipDeltaV / 2; // m/s
     let currentSpeed = 0; // m/s
     let previousSpeed = 0; // m/s
     let duration = 0; // seconds
-    let journeyLog = [];
-    journeyLog.push(`After ${duration} seconds: the speed is ${currentSpeed} m/s; distance left is ${distanceToCover} m`);
+    let distanceLeft = distanceToCover;
+    const steps = [
+        { time: duration, speed: currentSpeed, distanceLeft }
+    ];
     do {
         previousSpeed = currentSpeed;
-        if (shouldDecelerate(shipAcceleration, currentSpeed, distanceToCover)) {
+        if (shouldDecelerate(shipAcceleration, currentSpeed, distanceLeft)) {
             currentSpeed -= shipAcceleration;
             if (currentSpeed < 0) {
                 currentSpeed = 0;
@@ -58,15 +61,13 @@ function makeJourney(shipAcceleration, shipDeltaV, distanceToCover) {
             }
         }
         duration++;
-        distanceToCover -= (currentSpeed + previousSpeed) / 2;
-        journeyLog.push(`After ${duration} seconds: the speed is ${currentSpeed} m/s; distance left is ${distanceToCover} m`);
+        distanceLeft -= (currentSpeed + previousSpeed) / 2;
+        steps.push({ time: duration, speed: currentSpeed, distanceLeft });
         if (currentSpeed === 0) {
             break;
         }
-    } while (distanceToCover > 0);
-    let readableDuration = formatDuration(duration);
-    journeyLog.push(`Journey is done. Duration was: ${readableDuration} (${duration} seconds)`);
-    showJourneyLog(journeyLog);
+    } while (distanceLeft > 0);
+    return { steps, duration };
 }
 /**
  * Decide if the ship should start decelerating
@@ -92,26 +93,49 @@ function formatDuration(totalSeconds) {
     const pad = (n) => String(n).padStart(2, "0");
     return `${pad(days)}d:${pad(hours)}h:${pad(minutes)}m:${pad(seconds)}s`;
 }
-function showJourneyLog(journeyLog) {
-    // show up to 100 logs, evenly spaced, except 1st and final 2 which are always shown
-    let logsToShow = [];
-    if (journeyLog.length <= 100) {
-        logsToShow = journeyLog;
-    }
-    else {
-        const spacedCount = 97;
-        const step = (journeyLog.length - 3) / spacedCount;
-        for (let i = 0; i <= spacedCount; i++) {
-            const entry = journeyLog[Math.round(i * step)];
-            if (entry !== undefined) {
-                logsToShow.push(entry);
-            }
-        }
-        logsToShow = logsToShow.concat(journeyLog.slice(-2)); // add the last 2 logs
-    }
-    for (let logItem of logsToShow) {
-        console.log(logItem);
-    }
+/**
+ * @returns A line like "After 110 seconds: the speed is 150.42 m/s; distance left is 383299.12 km"
+ */
+function formatStep(step) {
+    const distanceLeftKM = convertLength(step.distanceLeft, "m", "km");
+    return `After ${step.time} seconds: the speed is ${step.speed.toFixed(2)} m/s; distance left is ${distanceLeftKM.toFixed(2)} km`;
 }
-makeJourney(0.981, convertLength(1000, "km", "m"), convertLength(225_000_000, "km", "m"));
+/**
+ * @returns A line with the duration formatted and in raw seconds
+ */
+function formatSummary(duration) {
+    return `Journey is done. Duration was: ${formatDuration(duration)} (${duration} seconds)`;
+}
+/**
+ * Picks evenly spaced steps to show, always includes the first and the last
+ * @param steps All steps of the journey
+ * @param maxCount The limit of steps to return
+ * @returns `steps` unchanged if it fits in the limit, otherwise evenly sampled
+ */
+function sampleSteps(steps, maxCount) {
+    if (steps.length <= maxCount) {
+        return steps;
+    }
+    const sampled = [];
+    const stride = (steps.length - 1) / (maxCount - 1);
+    for (let i = 0; i < maxCount; i++) {
+        const step = steps[Math.round(i * stride)];
+        if (step !== undefined) {
+            sampled.push(step);
+        }
+    }
+    return sampled;
+}
+/**
+ * Prints a readable summary of a journey to the console
+ * @param result The journey to print, as returned by `simulateJourney`
+ */
+function showJourneyLog(result) {
+    for (const step of sampleSteps(result.steps, 100)) {
+        console.log(formatStep(step));
+    }
+    console.log(formatSummary(result.duration));
+}
+let result = simulateJourney(0.981, convertLength(1000, "km", "m"), convertLength(225_000_000, "km", "m"));
+showJourneyLog(result);
 //# sourceMappingURL=spacelog.js.map

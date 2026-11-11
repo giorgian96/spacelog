@@ -46,18 +46,17 @@ function convertTime(
 }
 
 /**
- * Simulate a full journey
+ * Simulate a full journey: accelerate, cruise, then brake to a stop
  * @param shipAcceleration Acceleration and deceleration rate, in m/s^2
- * @param shipMaxSpeed Top speed of the ship, in m/s
+ * @param shipDeltaV Total velocity change available for the journey, in m/s
  * @param distanceToCover Total distance of the journey, in m
  */
 function makeJourney(
     shipAcceleration: number,
-    shipMaxSpeed: number,
+    shipDeltaV: number,
     distanceToCover: number
 ): void {
-    // Starting from 0 initial speed, cruise when max speed is reached
-    // at destination should have 0 final speed
+    const maxSpeed = shipDeltaV / 2; // m/s
     let currentSpeed = 0; // m/s
     let previousSpeed = 0; // m/s
     let duration = 0; // seconds
@@ -78,8 +77,8 @@ function makeJourney(
         } else {
             currentSpeed += shipAcceleration;
 
-            if (currentSpeed > shipMaxSpeed) {
-                currentSpeed = shipMaxSpeed;
+            if (currentSpeed > maxSpeed) {
+                currentSpeed = maxSpeed;
             }
         }
 
@@ -156,6 +155,6 @@ function showJourneyLog(journeyLog: string[]): void {
 
 makeJourney(
     0.981,
-    convertLength(500, "km", "m"),
+    convertLength(1000, "km", "m"),
     convertLength(225_000_000, "km", "m")
 );

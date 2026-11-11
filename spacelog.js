@@ -31,14 +31,13 @@ function convertTime(value, from, to) {
     return (value * TIME_UNITS[from]) / TIME_UNITS[to];
 }
 /**
- * Simulate a full journey
+ * Simulate a full journey: accelerate, cruise, then brake to a stop
  * @param shipAcceleration Acceleration and deceleration rate, in m/s^2
- * @param shipMaxSpeed Top speed of the ship, in m/s
+ * @param shipDeltaV Total velocity change available for the journey, in m/s
  * @param distanceToCover Total distance of the journey, in m
  */
-function makeJourney(shipAcceleration, shipMaxSpeed, distanceToCover) {
-    // Starting from 0 initial speed, cruise when max speed is reached
-    // at destination should have 0 final speed
+function makeJourney(shipAcceleration, shipDeltaV, distanceToCover) {
+    const maxSpeed = shipDeltaV / 2; // m/s
     let currentSpeed = 0; // m/s
     let previousSpeed = 0; // m/s
     let duration = 0; // seconds
@@ -54,8 +53,8 @@ function makeJourney(shipAcceleration, shipMaxSpeed, distanceToCover) {
         }
         else {
             currentSpeed += shipAcceleration;
-            if (currentSpeed > shipMaxSpeed) {
-                currentSpeed = shipMaxSpeed;
+            if (currentSpeed > maxSpeed) {
+                currentSpeed = maxSpeed;
             }
         }
         duration++;
@@ -114,5 +113,5 @@ function showJourneyLog(journeyLog) {
         console.log(logItem);
     }
 }
-makeJourney(0.981, convertLength(500, "km", "m"), convertLength(225_000_000, "km", "m"));
+makeJourney(0.981, convertLength(1000, "km", "m"), convertLength(225_000_000, "km", "m"));
 //# sourceMappingURL=spacelog.js.map

@@ -1,0 +1,22 @@
+{
+  "name": "space-log",
+  "version": "1.0.0",
+  "description": "Calculate how long it would take to reach the planets in a scifi spaceship",
+  "homepage": "https://github.com/giorgian96/spacelog#readme",
+  "bugs": {
+    "url": "https://github.com/giorgian96/spacelog/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/giorgian96/spacelog.git"
+  },
+  "license": "ISC",
+  "author": "Robescu Giorgian Valentin",
+  "type": "commonjs",
+  "scripts": {
+    "watch": "tsc --watch"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2"
+  }
+}

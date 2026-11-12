@@ -39,34 +39,28 @@ const CELESTIAL_BODIES = {
 const STARSHIPS = {
     chemical: {
         name: "Chemical rocket",
-        description: "The kind of rockets we use today. Strong thrust, but very little delta-V",
+        description: "Traditional rockets we've all seen, like the Saturn V's upper stage. Strong thrust, but very little delta-V",
         acceleration: 20,
-        deltaV: convertLength(10, "km", "m")
+        deltaV: convertLength(9, "km", "m")
     },
     fission: {
         name: "Fission rocket",
-        description: "A reactor heats the propellant, a big step up in both thrust and delta-V",
-        acceleration: 0.5,
+        description: "A nuclear salt-water rocket, the fission reaction burns right in the exhaust, giving chemical-class thrust with far more delta-V",
+        acceleration: 30,
         deltaV: convertLength(150, "km", "m")
     },
     fusion: {
         name: "Fusion rocket",
-        description: "An advanced fusion powered rocket that provides constant thrust and a huge delta-V budget",
-        acceleration: 0.981,
-        deltaV: convertLength(1100, "km", "m")
+        description: "An advanced fusion drive, gentle but constant thrust, and enough delta-V to cross the solar system in months",
+        acceleration: 1,
+        deltaV: convertLength(2000, "km", "m")
     },
     antimatter: {
-        name: "Antimatter ship",
-        description: "A real starship, this one unlocks the stars, kinda",
-        acceleration: 9.81,
+        name: "Antimatter rocket",
+        description: "This makes interstellar travel feasible, the nearest stars are within reach in a human lifetime",
+        acceleration: 1,
         deltaV: convertLength(65_000, "km", "m")
     },
-    scifi: {
-        name: "Scifi starship",
-        description: "This one is the kind of ship you could use in a scifi show, with inertial dampeners just so the crew can survive the acceleration. Still slower than light though",
-        acceleration: 300,
-        deltaV: convertLength(290_000, "km", "m")
-    }
 };
 /** How many steps a journey can hold */
 const MAX_LOGGED_STEPS = 100;

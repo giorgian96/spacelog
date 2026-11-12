@@ -41,14 +41,55 @@ const CELESTIAL_BODIES = {
     pluto: { name: "Pluto", sunDistance: convertLength(39.482, "AU", "m") },
 } satisfies Record<string, CelestialBody>;
 
+const STARSHIPS = {
+    chemical: {
+        name: "Chemical rocket",
+        description: "The kind of rockets we use today. Strong thrust, but very little delta-V",
+        acceleration: 20,
+        deltaV: convertLength(10, "km", "m")
+    },
+    fission: {
+        name: "Fission rocket",
+        description: "A reactor heats the propellant, a big step up in both thrust and delta-V",
+        acceleration: 0.5,
+        deltaV: convertLength(150, "km", "m")
+    },
+    fusion: {
+        name: "Fusion rocket",
+        description: "An advanced fusion powered rocket that provides constant thrust and a huge delta-V budget",
+        acceleration: 0.981,
+        deltaV: convertLength(1100, "km", "m")
+    },
+    antimatter: {
+        name: "Antimatter ship",
+        description: "A real starship, this one unlocks the stars, kinda",
+        acceleration: 9.81,
+        deltaV: convertLength(65_000, "km", "m")
+    },
+    scifi: {
+        name: "Scifi starship",
+        description: "This one is the kind of ship you could use in a scifi show, with inertial dampeners just so the crew can survive the acceleration. Still slower than light though",
+        acceleration: 300,
+        deltaV: convertLength(290_000, "km", "m")
+    }
+} satisfies Record<string, Starship>;
+
 // Types
 type LengthUnit = keyof typeof LENGTH_UNITS;
 type TimeUnit = keyof typeof TIME_UNITS;
 type CelestialBodyId = keyof typeof CELESTIAL_BODIES;
+type StarshipId = keyof typeof STARSHIPS;
 
 interface CelestialBody {
     name: string;
     sunDistance: number; // average distance from the Sun, in meters. Moon uses Earth's value
+}
+
+interface Starship {
+    name: string;
+    description: string;
+    acceleration: number;
+    deltaV: number;
 }
 
 /** A snapshot of the ship at one point in the journey */
@@ -356,10 +397,12 @@ function showJourneyLog(result: JourneyResult): void {
     }
 }
 
+const ship = STARSHIPS.fusion;
+
 let result = simulateJourney(
-    0.981,
-    convertLength(1000, "km", "m"),
-    convertLength(225_000_000, "km", "m")
+    ship.acceleration,
+    ship.deltaV,
+    distanceBetween("earth", "mars")
 );
 
 showJourneyLog(result);

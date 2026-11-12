@@ -1,16 +1,26 @@
 // Started work on this in January 2025
 
 // Units
-const LENGTH_UNITS = {
-    m: 1,
-    km: 1000
-} as const;
-
 const TIME_UNITS = {
     s: 1,
     min: 60,
     h: 3600,
     d: 86400,
+    yr: 31_557_600, // Julian year: 365.25 days
+} as const;
+
+/** Speed of light in a vacuum, in m/s */
+const SPEED_OF_LIGHT = 299_792_458;
+
+const LENGTH_UNITS = {
+    m: 1,
+    km: 1000,
+    AU: 149_597_870_700, // exact, fixed by the IAU in 2012
+    ls: SPEED_OF_LIGHT * TIME_UNITS.s,
+    lmin: SPEED_OF_LIGHT * TIME_UNITS.min,
+    lh: SPEED_OF_LIGHT * TIME_UNITS.h,
+    ld: SPEED_OF_LIGHT * TIME_UNITS.d,
+    ly: SPEED_OF_LIGHT * TIME_UNITS.yr,
 } as const;
 
 // Types

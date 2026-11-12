@@ -1,5 +1,6 @@
 // Started work on this in January 2025
 
+// Units
 const LENGTH_UNITS = {
     m: 1,
     km: 1000
@@ -12,6 +13,7 @@ const TIME_UNITS = {
     d: 86400,
 } as const;
 
+// Types
 type LengthUnit = keyof typeof LENGTH_UNITS;
 type TimeUnit = keyof typeof TIME_UNITS;
 
@@ -22,11 +24,186 @@ interface JourneyStep {
     distanceLeft: number; // Distance still to cover, in meters
 }
 
+/** Statistics gathered over every step of the journey, all values in base units */
+interface JourneyStats {
+    peakSpeed: number;
+    accelerationTime: number; // time spent speeding up
+    cruiseTime: number; // time spent at constant (max) speed
+    decelerationTime: number; // time spent slowing down
+    averageSpeed: number;
+    deltaVUsed: number; // every speed-up and slow-down added
+}
+
 /** The outcome of a simulated journey */
 interface JourneyResult {
-    steps: JourneyStep[]; // Every simulated second
+    steps: JourneyStep[]; // A record of the journey (evenly spaced steps)
     duration: number; // Total journey time, in seconds
+    stats: JourneyStats;
 }
+
+/** How many steps a journey can hold */
+const MAX_LOGGED_STEPS = 100;
+
+class JourneyLog {
+    private readonly capacity: number;
+    private kept: JourneyStep[] = [];
+    private spacing = 1; // a step is kept if its index is a multiple of this
+    private recorded = 0; // how many steps have been recorded so far
+    private lastStep: JourneyStep | undefined = undefined;
+    private firstStep: JourneyStep | undefined = undefined;
+    private peakSpeed = 0; // m/s
+    private accelerationTime = 0; // s
+    private cruiseTime = 0; // s
+    private decelerationTime = 0; // s
+    private deltaVUsed = 0; // m/s
+
+    /**
+     * @param capacity Size of the buffer
+     */
+    constructor(capacity: number) {
+        this.capacity = capacity;
+    }
+
+    /**
+     * Records the next step of the journey, kept only if it falls on the current spacing
+     * @param step The step to record
+     */
+    record(step: JourneyStep): void {
+        if (this.lastStep === undefined) {
+            this.firstStep = step;
+        } else {
+            const elapsed = step.time - this.lastStep.time;
+            const speedChange = step.speed - this.lastStep.speed;
+
+            if (speedChange > 0) {
+                this.accelerationTime += elapsed;
+            } else if (speedChange < 0) {
+                this.decelerationTime += elapsed;
+            } else {
+                this.cruiseTime += elapsed;
+            }
+
+            this.deltaVUsed += Math.abs(speedChange);
+        }
+
+        this.peakSpeed = Math.max(this.peakSpeed, step.speed);
+        this.lastStep = step;
+
+        if (this.recorded % this.spacing === 0) {
+            this.kept.push(step);
+
+            if (this.kept.length >= this.capacity) {
+                this.thin();
+            }
+        }
+
+        this.recorded++;
+    }
+
+    /**
+     * @returns The kept steps, with the final step always added
+     */
+    getSteps(): JourneyStep[] {
+        if (this.lastStep === undefined || this.kept.at(-1) === this.lastStep) {
+            return [...this.kept];
+        }
+
+        return [...this.kept, this.lastStep];
+    }
+
+    /**
+     * @returns Statistics over the steps recorded so far
+     */
+    getStats(): JourneyStats {
+        let averageSpeed = 0;
+
+        if (this.firstStep !== undefined && this.lastStep !== undefined) {
+            const distanceCovered = this.firstStep.distanceLeft - this.lastStep.distanceLeft;
+            averageSpeed = distanceCovered / this.lastStep.time;
+        }
+
+        return {
+            peakSpeed: this.peakSpeed,
+            accelerationTime: this.accelerationTime,
+            cruiseTime: this.cruiseTime,
+            decelerationTime: this.decelerationTime,
+            averageSpeed,
+            deltaVUsed: this.deltaVUsed,
+        };
+    }
+
+    /** Drops every other kept step and doubles the spacing */
+    private thin(): void {
+        this.kept = this.kept.filter((_, index) => index % 2 === 0);
+        this.spacing *= 2;
+    }
+}
+
+// Simulation
+
+/**
+ * Simulate a full journey: accelerate, cruise, then brake to a stop
+ * @param shipAcceleration Acceleration and deceleration rate, in m/s^2
+ * @param shipDeltaV Total velocity change available for the journey, in m/s
+ * @param distanceToCover Total distance of the journey, in m
+ * @returns The simulated results of the journey, the total duration, and the stats
+ */
+function simulateJourney(
+    shipAcceleration: number,
+    shipDeltaV: number,
+    distanceToCover: number
+): JourneyResult {
+    const maxSpeed = shipDeltaV / 2; // m/s
+    let currentSpeed = 0; // m/s
+    let previousSpeed = 0; // m/s
+    let duration = 0; // seconds
+    let distanceLeft = distanceToCover;
+
+    const log = new JourneyLog(MAX_LOGGED_STEPS);
+    log.record({time: duration, speed: currentSpeed, distanceLeft});
+
+    do {
+        previousSpeed = currentSpeed;
+
+        if (shouldDecelerate(shipAcceleration, currentSpeed, distanceLeft)) {
+            currentSpeed -= shipAcceleration;
+
+            if (currentSpeed < 0) {
+                currentSpeed = 0;
+            }
+        } else {
+            currentSpeed += shipAcceleration;
+
+            if (currentSpeed > maxSpeed) {
+                currentSpeed = maxSpeed;
+            }
+        }
+
+        duration++;
+        distanceLeft -= (currentSpeed + previousSpeed) / 2;
+        log.record({ time: duration, speed: currentSpeed, distanceLeft});
+
+        if (currentSpeed === 0) {
+            break;
+        }
+    } while (distanceLeft > 0);
+
+    return { steps: log.getSteps(), stats: log.getStats(), duration };
+}
+
+/**
+ * Decide if the ship should start decelerating
+ * @param shipAcceleration Acceleration and deceleration rate, in m/s^2
+ * @param currentSpeed Current speed of the ship, in m/s
+ * @param distanceLeft Distance remaining, in m
+ * @returns 
+ */
+function shouldDecelerate(shipAcceleration: number, currentSpeed: number, distanceLeft: number): boolean {
+    let brakingDistance = (currentSpeed**2) / (2 * shipAcceleration);
+    return brakingDistance + 2*(currentSpeed + shipAcceleration) >= distanceLeft;
+}
+
+// Formating
 
 /**
  * Converts a length from one unit to another
@@ -59,69 +236,6 @@ function convertTime(
 }
 
 /**
- * Simulate a full journey: accelerate, cruise, then brake to a stop
- * @param shipAcceleration Acceleration and deceleration rate, in m/s^2
- * @param shipDeltaV Total velocity change available for the journey, in m/s
- * @param distanceToCover Total distance of the journey, in m
- * @returns Every simulated second of the journey, and the total duration
- */
-function simulateJourney(
-    shipAcceleration: number,
-    shipDeltaV: number,
-    distanceToCover: number
-): JourneyResult {
-    const maxSpeed = shipDeltaV / 2; // m/s
-    let currentSpeed = 0; // m/s
-    let previousSpeed = 0; // m/s
-    let duration = 0; // seconds
-    let distanceLeft = distanceToCover;
-
-    const steps: JourneyStep[] = [
-        { time: duration, speed: currentSpeed, distanceLeft }
-    ];
-
-    do {
-        previousSpeed = currentSpeed;
-
-        if (shouldDecelerate(shipAcceleration, currentSpeed, distanceLeft)) {
-            currentSpeed -= shipAcceleration;
-
-            if (currentSpeed < 0) {
-                currentSpeed = 0;
-            }
-        } else {
-            currentSpeed += shipAcceleration;
-
-            if (currentSpeed > maxSpeed) {
-                currentSpeed = maxSpeed;
-            }
-        }
-
-        duration++;
-        distanceLeft -= (currentSpeed + previousSpeed) / 2;
-        steps.push({ time: duration, speed: currentSpeed, distanceLeft});
-
-        if (currentSpeed === 0) {
-            break;
-        }
-    } while (distanceLeft > 0);
-
-    return { steps, duration };
-}
-
-/**
- * Decide if the ship should start decelerating
- * @param shipAcceleration Acceleration and deceleration rate, in m/s^2
- * @param currentSpeed Current speed of the ship, in m/s
- * @param distanceLeft Distance remaining, in m
- * @returns 
- */
-function shouldDecelerate(shipAcceleration: number, currentSpeed: number, distanceLeft: number): boolean {
-    let brakingDistance = (currentSpeed**2) / (2 * shipAcceleration);
-    return brakingDistance + 2*(currentSpeed + shipAcceleration) >= distanceLeft;
-}
-
-/**
  * Breaks a duration into days, hours, minutes and seconds for display
  * @param totalSeconds The duration to format
  * @returns The duration as `DDd:HHh:MMm:SSs`
@@ -146,47 +260,46 @@ function formatStep(step: JourneyStep): string {
 }
 
 /**
+ * Builds the display lines for a journey's statistics
+ * @param stats The statistics to format, in base units (meters, seconds)
+ * @returns One line per stat, speeds in km/s and times as formatted durations
+ */
+function formatStats(stats: JourneyStats): string[] {
+    const kmPerSecond = (speed: number) => convertLength(speed, "m", "km").toFixed(2);
+
+    return [
+        `Peak speed: ${kmPerSecond(stats.peakSpeed)} km/s`,
+        `Average speed: ${kmPerSecond(stats.averageSpeed)} km/s`,
+        `Delta-V used: ${kmPerSecond(stats.deltaVUsed)} km/s`,
+        `Accelerating for: ${formatDuration(stats.accelerationTime)}`,
+        `Cruising for: ${formatDuration(stats.cruiseTime)}`,
+        `Decelerating for: ${formatDuration(stats.decelerationTime)}`,
+    ];
+}
+
+/**
  * @returns A line with the duration formatted and in raw seconds
  */
 function formatSummary(duration: number): string {
     return `Journey is done. Duration was: ${formatDuration(duration)} (${duration} seconds)`;
 }
 
-/**
- * Picks evenly spaced steps to show, always includes the first and the last
- * @param steps All steps of the journey
- * @param maxCount The limit of steps to return
- * @returns `steps` unchanged if it fits in the limit, otherwise evenly sampled
- */
-function sampleSteps(steps: JourneyStep[], maxCount: number): JourneyStep[] {
-    if (steps.length <= maxCount) {
-        return steps;
-    }
-
-    const sampled: JourneyStep[] = [];
-    const stride = (steps.length - 1) / (maxCount - 1);
-
-    for (let i = 0; i < maxCount; i++) {
-        const step = steps[Math.round(i * stride)];
-
-        if (step !== undefined) {
-            sampled.push(step);
-        }
-    }
-
-    return sampled;
-}
+// UI
 
 /**
  * Prints a readable summary of a journey to the console
  * @param result The journey to print, as returned by `simulateJourney`
  */
 function showJourneyLog(result: JourneyResult): void {
-    for (const step of sampleSteps(result.steps, 100)) {
+    for (const step of result.steps) {
         console.log(formatStep(step));
     }
 
     console.log(formatSummary(result.duration));
+
+    for (const line of formatStats(result.stats)) {
+        console.log(line);
+    }
 }
 
 let result = simulateJourney(

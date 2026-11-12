@@ -23,9 +23,33 @@ const LENGTH_UNITS = {
     ly: SPEED_OF_LIGHT * TIME_UNITS.yr,
 } as const;
 
+/** Average distance, in meters */
+const EARTH_MOON_DISTANCE = convertLength(384_400, "km", "m");
+
+/** Bodies ordered by distance from the Sun. Values are semi-major axes, converted from AU */
+const CELESTIAL_BODIES = {
+    mercury: { name: "Mercury", sunDistance: convertLength(0.387098, "AU", "m") },
+    venus: { name: "Venus", sunDistance: convertLength(0.723332, "AU", "m") },
+    earth: { name: "Earth", sunDistance: convertLength(1, "AU", "m") },
+    moon: { name: "Moon", sunDistance: convertLength(1, "AU", "m") },
+    mars: { name: "Mars", sunDistance: convertLength(1.523681, "AU", "m") },
+    ceres: { name: "Ceres", sunDistance: convertLength(2.77, "AU", "m") },
+    jupiter: { name: "Jupiter", sunDistance: convertLength(5.2038, "AU", "m") },
+    saturn: { name: "Saturn", sunDistance: convertLength(9.5826, "AU", "m") },
+    uranus: { name: "Uranus", sunDistance: convertLength(19.19126, "AU", "m") },
+    neptune: { name: "Neptune", sunDistance: convertLength(30.07, "AU", "m") },
+    pluto: { name: "Pluto", sunDistance: convertLength(39.482, "AU", "m") },
+} satisfies Record<string, CelestialBody>;
+
 // Types
 type LengthUnit = keyof typeof LENGTH_UNITS;
 type TimeUnit = keyof typeof TIME_UNITS;
+type CelestialBodyId = keyof typeof CELESTIAL_BODIES;
+
+interface CelestialBody {
+    name: string;
+    sunDistance: number; // average distance from the Sun, in meters. Moon uses Earth's value
+}
 
 /** A snapshot of the ship at one point in the journey */
 interface JourneyStep {
@@ -211,6 +235,26 @@ function simulateJourney(
 function shouldDecelerate(shipAcceleration: number, currentSpeed: number, distanceLeft: number): boolean {
     let brakingDistance = (currentSpeed**2) / (2 * shipAcceleration);
     return brakingDistance + 2*(currentSpeed + shipAcceleration) >= distanceLeft;
+}
+
+/**
+ * Approximate average distance between two celestial bodies.
+ * @param from The celestial body the journey starts at
+ * @param to The celestial body the journey ends at
+ * @returns The distance between them, in meters.
+ */
+function distanceBetween(from: CelestialBodyId, to: CelestialBodyId): number {
+    if (from === to) {
+        return 0;
+    }
+
+    if ((from === "earth" && to === "moon") ||
+        (from === "moon" && to === "earth")
+    ) {
+        return EARTH_MOON_DISTANCE;
+    }
+
+    return Math.max(CELESTIAL_BODIES[from].sunDistance, CELESTIAL_BODIES[to].sunDistance);
 }
 
 // Formating

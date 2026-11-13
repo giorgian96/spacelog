@@ -313,7 +313,6 @@ class JourneyUI {
     /** The last journey that was run, or undefined if the form has changed since */
     result = undefined;
     constructor() {
-        // A function, because an option can only live in one dropdown
         const bodyOptions = () => Object.entries(CELESTIAL_BODIES).map(([id, body]) => new Option(body.name, id));
         this.fromSelect.replaceChildren(...bodyOptions());
         this.toSelect.replaceChildren(...bodyOptions());

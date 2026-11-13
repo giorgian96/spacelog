@@ -150,7 +150,7 @@ class JourneyLog {
 // Simulation
 /**
  * Simulate a full journey: accelerate, cruise, then brake to a stop
- * @param shipAcceleration Acceleration and deceleration rate, in m/s^2
+ * @param shipAcceleration Acceleration and deceleration rate, in m/s²
  * @param shipDeltaV Total velocity change available for the journey, in m/s
  * @param distanceToCover Total distance of the journey, in m
  * @returns The simulated results of the journey, the total duration, and the stats
@@ -188,7 +188,7 @@ function simulateJourney(shipAcceleration, shipDeltaV, distanceToCover) {
 }
 /**
  * Decide if the ship should start decelerating
- * @param shipAcceleration Acceleration and deceleration rate, in m/s^2
+ * @param shipAcceleration Acceleration and deceleration rate, in m/s²
  * @param currentSpeed Current speed of the ship, in m/s
  * @param distanceLeft Distance remaining, in m
  * @returns
@@ -248,13 +248,6 @@ function formatDuration(totalSeconds) {
     return `${pad(days)}d:${pad(hours)}h:${pad(minutes)}m:${pad(seconds)}s`;
 }
 /**
- * @returns A line like "After 110 seconds: the speed is 150.42 m/s; distance left is 383299.12 km"
- */
-function formatStep(step) {
-    const distanceLeftKM = convertLength(step.distanceLeft, "m", "km");
-    return `After ${step.time} seconds: the speed is ${step.speed.toFixed(2)} m/s; distance left is ${distanceLeftKM.toFixed(2)} km`;
-}
-/**
  * Builds the display lines for a journey's statistics
  * @param stats The statistics to format, in base units (meters, seconds)
  * @returns One line per stat, speeds in km/s and times as formatted durations
@@ -277,20 +270,150 @@ function formatSummary(duration) {
     return `Journey is done. Duration was: ${formatDuration(duration)} (${duration} seconds)`;
 }
 // UI
+// The route and ship the form starts with
+const DEFAULT_FROM = "earth";
+const DEFAULT_TO = "mars";
+const DEFAULT_SHIP = "fusion";
+/** Routes shorter than this start out in km instead of AU, in m */
+const SHORT_ROUTE_LIMIT = convertLength(0.1, "AU", "m");
+/** Formats numbers for display in the user's locale, to 6 significant digits */
+const numberFormat = new Intl.NumberFormat(undefined, { maximumSignificantDigits: 6 });
 /**
- * Prints a readable summary of a journey to the console
- * @param result The journey to print, as returned by `simulateJourney`
+ * Finds an element by id, checking that it exists and has the expected type
+ *
+ * @param id - The id of the element
+ * @param expected - The element's type, for example `HTMLSelectElement`
+ * @returns The element, typed as `expected`. Throws if it is missing or of another type
  */
-function showJourneyLog(result) {
-    for (const step of result.steps) {
-        console.log(formatStep(step));
+function getElement(id, expected) {
+    const element = document.getElementById(id);
+    if (!(element instanceof expected)) {
+        throw new Error(`Element #${id} is missing or is not a ${expected.name}`);
     }
-    console.log(formatSummary(result.duration));
-    for (const line of formatStats(result.stats)) {
-        console.log(line);
+    return element;
+}
+/**
+ * Controls the page: fills the form, runs the journey on submit and shows the results
+ */
+class JourneyUI {
+    fromSelect = getElement("from-body", HTMLSelectElement);
+    toSelect = getElement("to-body", HTMLSelectElement);
+    distanceOutput = getElement("distance-value", HTMLOutputElement);
+    distanceUnitSelect = getElement("distance-unit", HTMLSelectElement);
+    shipSelect = getElement("ship", HTMLSelectElement);
+    shipDescription = getElement("ship-description", HTMLParagraphElement);
+    accelerationOutput = getElement("acceleration-value", HTMLOutputElement);
+    deltaVOutput = getElement("delta-v-value", HTMLOutputElement);
+    journeyForm = getElement("journey-form", HTMLFormElement);
+    resultsSection = getElement("results", HTMLElement);
+    durationText = getElement("duration", HTMLParagraphElement);
+    statsList = getElement("stats", HTMLUListElement);
+    distanceLeftHeader = getElement("distance-left-header", HTMLTableCellElement);
+    stepsBody = getElement("steps-body", HTMLTableSectionElement);
+    /** The last journey that was run, or undefined if the form has changed since */
+    result = undefined;
+    constructor() {
+        // A function, because an option can only live in one dropdown
+        const bodyOptions = () => Object.entries(CELESTIAL_BODIES).map(([id, body]) => new Option(body.name, id));
+        this.fromSelect.replaceChildren(...bodyOptions());
+        this.toSelect.replaceChildren(...bodyOptions());
+        this.distanceUnitSelect.replaceChildren(...Object.keys(LENGTH_UNITS).map((unit) => new Option(unit)));
+        this.shipSelect.replaceChildren(...Object.entries(STARSHIPS).map(([id, ship]) => new Option(ship.name, id)));
+        this.fromSelect.value = DEFAULT_FROM;
+        this.toSelect.value = DEFAULT_TO;
+        this.shipSelect.value = DEFAULT_SHIP;
+        this.fromSelect.addEventListener("change", () => this.onRouteChange());
+        this.toSelect.addEventListener("change", () => this.onRouteChange());
+        this.distanceUnitSelect.addEventListener("change", () => this.onUnitChange());
+        this.shipSelect.addEventListener("change", () => this.onShipChange());
+        this.journeyForm.addEventListener("submit", (event) => this.onSubmit(event));
+        this.onRouteChange();
+        this.showShip();
+    }
+    /** Clears the results, blocks same-to-same, picks a starting unit and shows the distance */
+    onRouteChange() {
+        this.result = undefined;
+        this.showResults();
+        this.blockSameBody(this.toSelect, this.fromSelect);
+        this.blockSameBody(this.fromSelect, this.toSelect);
+        this.distanceUnitSelect.value = this.routeDistance() < SHORT_ROUTE_LIMIT ? "km" : "AU";
+        this.showDistance();
+    }
+    /** Clears the results and shows the new ship */
+    onShipChange() {
+        this.result = undefined;
+        this.showResults();
+        this.showShip();
+    }
+    /** Redraws everything that shows a distance */
+    onUnitChange() {
+        this.showDistance();
+        this.showResults();
+    }
+    /** Runs the selected journey and shows the outcome */
+    onSubmit(event) {
+        event.preventDefault();
+        const ship = this.selectedShip();
+        this.result = simulateJourney(ship.acceleration, ship.deltaV, this.routeDistance());
+        this.showResults();
+    }
+    /** Disables, in `select`, the body chosen in `other`, so a route can't start and end at the same body */
+    blockSameBody(select, other) {
+        for (const option of select.options) {
+            option.disabled = option.value === other.value;
+        }
+    }
+    /** Shows the route's distance in the selected unit */
+    showDistance() {
+        const distance = convertLength(this.routeDistance(), "m", this.distanceUnit());
+        this.distanceOutput.textContent = numberFormat.format(distance);
+    }
+    /** Shows the selected ship's description, acceleration (m/s²) and delta-V (km/s) */
+    showShip() {
+        const ship = this.selectedShip();
+        this.shipDescription.textContent = ship.description;
+        this.accelerationOutput.textContent = numberFormat.format(ship.acceleration);
+        this.deltaVOutput.textContent = numberFormat.format(convertLength(ship.deltaV, "m", "km"));
+    }
+    /** Draws the stored result, or hides the results section if there is none */
+    showResults() {
+        const result = this.result;
+        this.resultsSection.hidden = result === undefined;
+        if (result === undefined) {
+            return;
+        }
+        const unit = this.distanceUnit();
+        this.durationText.textContent = formatSummary(result.duration);
+        this.statsList.replaceChildren(...formatStats(result.stats).map((line) => {
+            const item = document.createElement("li");
+            item.textContent = line;
+            return item;
+        }));
+        this.distanceLeftHeader.textContent = `Distance left (${unit})`;
+        this.stepsBody.replaceChildren(...result.steps.map((step) => this.createStepRow(step, unit)));
+    }
+    /** Builds the table row for one step: time, speed in km/s, and distance left in `unit` */
+    createStepRow(step, unit) {
+        const row = document.createElement("tr");
+        row.insertCell().textContent = formatDuration(step.time);
+        row.insertCell().textContent = numberFormat.format(convertLength(step.speed, "m", "km"));
+        row.insertCell().textContent = numberFormat.format(convertLength(step.distanceLeft, "m", unit));
+        return row;
+    }
+    // The dropdowns are filled from the tables, so their values are always valid keys
+    // These three getters are the only places that cast them back
+    /** @returns The selected route's distance, in meters */
+    routeDistance() {
+        return distanceBetween(this.fromSelect.value, this.toSelect.value);
+    }
+    /** @returns The selected ship */
+    selectedShip() {
+        return STARSHIPS[this.shipSelect.value];
+    }
+    /** @returns The selected distance unit */
+    distanceUnit() {
+        return this.distanceUnitSelect.value;
     }
 }
-const ship = STARSHIPS.fusion;
-let result = simulateJourney(ship.acceleration, ship.deltaV, distanceBetween("earth", "mars"));
-showJourneyLog(result);
+new JourneyUI();
 //# sourceMappingURL=spacelog.js.map

@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,7 +8,69 @@
     <link rel="stylesheet" href="spacelog.css">
     <script defer src="spacelog.js"></script>
 </head>
+
 <body>
-    <span>Check the console</span>
+    <main>
+        <h1>Space journey log</h1>
+
+        <form id="journey-form">
+            <div class="row">
+                <div class="field">
+                    <label for="from-body">From</label>
+                    <select id="from-body"></select>
+                </div>
+                <div class="field">
+                    <label for="to-body">To</label>
+                    <select id="to-body"></select>
+                </div>
+            </div>
+
+            <div class="field">
+                <label for="distance-value">Distance</label>
+                <div class="row">
+                    <output id="distance-value"></output>
+                    <select id="distance-unit" aria-label="Distance unit"></select>
+                </div>
+            </div>
+
+            <div class="field">
+                <label for="ship">Ship</label>
+                <select id="ship"></select>
+                <p id="ship-description"></p>
+            </div>
+
+            <div class="row">
+                <div class="field">
+                    <label for="acceleration-value">Acceleration</label>
+                    <div><output id="acceleration-value"></output> m/s²</div>
+                </div>
+                <div class="field">
+                    <label for="delta-v-value">Delta-V</label>
+                    <div><output id="delta-v-value"></output> km/s</div>
+                </div>
+            </div>
+
+            <button type="submit">Simulate journey</button>
+        </form>
+
+        <section id="results" hidden>
+            <h2>Results</h2>
+            <p id="duration"></p>
+            <ul id="stats"></ul>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Speed (km/s)</th>
+                            <th id="distance-left-header">Distance left</th>
+                        </tr>
+                    </thead>
+                    <tbody id="steps-body"></tbody>
+                </table>
+            </div>
+        </section>
+    </main>
 </body>
+
 </html>

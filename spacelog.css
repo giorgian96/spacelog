@@ -10,8 +10,8 @@
     --row-tint: rgba(86, 139, 255, 0.04);
     --row-hover: rgba(86, 139, 255, 0.1);
     --glow: 0 0 8px rgba(86, 139, 255, 0.3);
-    --shadow: 0 0 24px rgba(0, 0, 0, 0.35);
-    --mono: "Share Tech Mono", "JetBrains Mono", "Consolas", monospace;
+    --shadow: 0 0 24px rgba(86, 139, 255, 0.35);
+    --mono: Consolas, monospace;
 }
 
 * {
@@ -105,7 +105,6 @@ label::before {
 select,
 output {
     width: 100%;
-    min-width: 0;
     padding: 0.5rem 0.6rem;
     border: 1px solid var(--line);
     background: var(--control-bg);
@@ -122,11 +121,6 @@ select:hover {
     border-color: var(--blue);
     outline: none;
     box-shadow: var(--glow);
-}
-
-select option {
-    background: var(--panel);
-    color: var(--text);
 }
 
 output {
@@ -148,7 +142,6 @@ output {
     min-height: 0;
     padding: 0;
     border: 0;
-    background: none;
 }
 
 #ship-description {
@@ -216,7 +209,6 @@ table {
     width: 100%;
     border-collapse: collapse;
     font-size: 0.9rem;
-    font-variant-numeric: tabular-nums;
 }
 
 th,

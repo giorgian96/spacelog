@@ -105,7 +105,7 @@ interface JourneyStats {
 
 /** The outcome of a simulated journey */
 interface JourneyResult {
-    steps: JourneyStep[]; // A record of the journey (evenly spaced steps)
+    steps: JourneyStep[]; // A record of the journey
     duration: number; // Total journey time, in seconds
     stats: JourneyStats;
 }
